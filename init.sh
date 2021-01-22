@@ -57,7 +57,7 @@ add_group(){
 }
 [[ -n $SSH_USERS ]] && {
   for ssh_user in ${SSH_USERS}; do 
-    add_user ${ssh_user}
+    add_user ${ssh_user} && update_keys ${ssh_user}
     echo $?
   done
 }
