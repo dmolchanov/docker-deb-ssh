@@ -11,21 +11,31 @@ add_user (){
   HOMEDIR="/home/${user}"
   USERADD_OPTS+=("-d" "${HOMEDIR}")
   [[ -n ${uid} ]] && USERADD_OPTS+=("-u" ${uid})
-  [[ -n ${gid} && $(egrep -q "^.+:.+:${gid}:" /etc/group) ]] && USERADD_OPTS+=("-g" ${gid}) 
+  [[ -n ${gid} && $(egrep -q "^.+:.+:${gid}:" /etc/group) ]] && USERADD_OPTS+=("-g" ${gid})
   id ${user} >/dev/null 2>&1 && return 0
   useradd ${USERADD_OPTS[@]} $user || return $?
   echo "${user}:${pass}" | chpasswd
+  return 0
+}
+
+update_keys (){
+  [[ -z $1 ]] && return 1
+  unset user pass uid gid ssh_key
+  IFS=: read user pass uid gid ssh_key < <(echo $1)
   eval $(echo ssh_key=\$SSH_KEY_${user})
   SSHDIR=${HOMEDIR}/.ssh
-  [[ -n $ssh_key && $(grep -q "$ssh_key" ${SSHDIR}/authorized_keys) ]] && {
-  echo "adding ${ssh_key} for ${user}"
-  mkdir -p ${SSHDIR}
-  echo ${ssh_key} >> ${SSHDIR}/authorized_keys
-  chmod 600 ${SSHDIR}/authorized_keys 
+  [[ -d ${SSHDIR} ]] || {
+    mkdir -p ${SSHDIR}
+    touch ${SSHDIR}/authorized_keys
+    chmod 600 ${SSHDIR}/authorized_keys
     chmod 700 ${SSHDIR}
     chown $(id -u ${user}):$(id -g ${user}) ${SSHDIR} -R
   }
-  return 0
+  [[ -n $ssh_key  ]] && $(grep -q "$ssh_key" ${SSHDIR}/authorized_keys) || {
+    echo "adding ${ssh_key} for ${user}"
+    mkdir -p ${SSHDIR}
+    echo ${ssh_key} >> ${SSHDIR}/authorized_keys
+  }
 }
 
 add_group(){
